@@ -1,13 +1,15 @@
-import { WorkstationFile, FileTypeCategory } from './types';
-import { INITIAL_FILES } from './constants';
+import { WorkstationFile, ProjectItem, ClipboardItem } from '../types';
+import { INITIAL_FILES } from '../constants';
 
-const STORAGE_KEY = 'yc_universal_workstation_files_v2';
+const FILES_STORAGE_KEY = 'yc_universal_workstation_files_v2';
+const PROJECTS_STORAGE_KEY = 'yc_workstation_projects_v1';
+const CLIPBOARD_STORAGE_KEY = 'yc_workstation_clipboard_v1';
 
 export const getStoredFiles = (): WorkstationFile[] => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(FILES_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_FILES));
+      localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(INITIAL_FILES));
       return INITIAL_FILES;
     }
     const parsed = JSON.parse(raw);
@@ -20,13 +22,117 @@ export const getStoredFiles = (): WorkstationFile[] => {
 
 export const saveStoredFiles = (files: WorkstationFile[]): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(files));
+    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(files));
   } catch (err) {
     console.error('Error saving files to localStorage', err);
   }
 };
 
-export const detectFileType = (fileName: string, mimeType?: string): { category: FileTypeCategory; extension: string } => {
+export const getStoredProjects = (): ProjectItem[] => {
+  try {
+    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (!raw) {
+      const initialProjects: ProjectItem[] = [
+        {
+          id: 'proj-alpha',
+          title: 'Sistema Operativo YC Workstation',
+          description: 'Desarrollo de módulos universales locales, visualizadores y pipelines offline.',
+          color: '#d4af37',
+          associatedFileIds: ['f-readme', 'f-code-demo'],
+          quickNotes: 'Prioridades:\n- Mantener cero dependencias externas de pago.\n- Procesamiento de audio/video y render WebGL continuo.',
+          createdAt: Date.now() - 86400000,
+          tasks: [
+            {
+              id: 'task-1',
+              title: 'Subtítulos SRT y VTT dinámicos',
+              description: 'Integrar parser y sincronización de texto sobre video en milisegundos.',
+              status: 'done',
+              priority: 'high',
+              fileIds: ['f-sample-audio'],
+              createdAt: Date.now() - 36000000
+            },
+            {
+              id: 'task-2',
+              title: 'Conversor local de formatos',
+              description: 'Pipeline de transcodificación de imágenes Canvas (PNG, JPG, WebP) y datos (CSV, JSON, Markdown).',
+              status: 'done',
+              priority: 'high',
+              fileIds: ['f-csv-data'],
+              createdAt: Date.now() - 25000000
+            },
+            {
+              id: 'task-3',
+              title: 'Portapapeles universal persistente',
+              description: 'Historial seguro en memoria local con acceso rápido y copia con 1 clic.',
+              status: 'in_progress',
+              priority: 'medium',
+              fileIds: ['f-readme'],
+              createdAt: Date.now() - 12000000
+            }
+          ]
+        }
+      ];
+      localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(initialProjects));
+      return initialProjects;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error loading projects', e);
+    return [];
+  }
+};
+
+export const saveStoredProjects = (projects: ProjectItem[]): void => {
+  try {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+  } catch (e) {
+    console.error('Error saving projects', e);
+  }
+};
+
+export const getStoredClipboard = (): ClipboardItem[] => {
+  try {
+    const raw = localStorage.getItem(CLIPBOARD_STORAGE_KEY);
+    if (!raw) {
+      const initialClipboard: ClipboardItem[] = [
+        {
+          id: 'clip-1',
+          content: 'https://yc-universal-workstation.local/workspace',
+          source: 'Navegación Sistema',
+          type: 'text',
+          timestamp: Date.now() - 3600000,
+          favorite: true
+        },
+        {
+          id: 'clip-2',
+          content: '{\n  "status": "ONLINE",\n  "offlineStorage": "LocalStorage v2",\n  "cryptographicSeals": true\n}',
+          source: 'quantum_engine.js',
+          type: 'json',
+          timestamp: Date.now() - 1800000,
+          favorite: false
+        }
+      ];
+      localStorage.setItem(CLIPBOARD_STORAGE_KEY, JSON.stringify(initialClipboard));
+      return initialClipboard;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error loading clipboard', e);
+    return [];
+  }
+};
+
+export const saveStoredClipboard = (items: ClipboardItem[]): void => {
+  try {
+    localStorage.setItem(CLIPBOARD_STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {
+    console.error('Error saving clipboard', e);
+  }
+};
+
+export const detectFileType = (fileName: string, mimeType?: string): { category: WorkstationFile['type']; extension: string } => {
   const parts = fileName.split('.');
   const ext = parts.length > 1 ? parts.pop()!.toLowerCase() : '';
 
@@ -54,7 +160,7 @@ export const detectFileType = (fileName: string, mimeType?: string): { category:
   if (['zip', 'tar', 'gz', '7z', 'bz2', 'rar'].includes(ext)) {
     return { category: 'archive', extension: ext };
   }
-  if (['js', 'ts', 'jsx', 'tsx', 'json', 'html', 'css', 'xml', 'yaml', 'yml', 'md', 'txt', 'log', 'sh', 'py', 'sql'].includes(ext)) {
+  if (['js', 'ts', 'jsx', 'tsx', 'json', 'html', 'css', 'xml', 'yaml', 'yml', 'md', 'txt', 'log', 'sh', 'py', 'sql', 'srt', 'vtt'].includes(ext)) {
     return { category: 'code', extension: ext };
   }
 
