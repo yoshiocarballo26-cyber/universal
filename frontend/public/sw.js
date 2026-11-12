@@ -1,5 +1,6 @@
-const CACHE_NAME = 'yc-universal-shell-v1';
+const CACHE_NAME = 'yc-universal-shell-v2';
 const scopeUrl = self.registration.scope;
+const TAILWIND_CDN = 'https://cdn.tailwindcss.com';
 const APP_SHELL = [
   new URL('./', scopeUrl).href,
   new URL('./index.html', scopeUrl).href,
@@ -9,11 +10,19 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    // Tailwind is loaded from its CDN by index.html; cache its opaque script
+    // response after the first online install so the UI can render offline.
+    try {
+      const response = await fetch(new Request(TAILWIND_CDN, { mode: 'no-cors' }));
+      await cache.put(TAILWIND_CDN, response);
+    } catch (error) {
+      console.warn('[YC Universal] Tailwind CDN could not be cached:', error);
+    }
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -28,8 +37,20 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (request.method !== 'GET') return;
   if (url.pathname.includes('/api-proxy') || url.pathname.includes('/ws-proxy')) return;
+
+  if (url.href === TAILWIND_CDN) {
+    event.respondWith(
+      caches.match(TAILWIND_CDN).then((cached) => cached || fetch(request).then((response) => {
+        caches.open(CACHE_NAME).then((cache) => cache.put(TAILWIND_CDN, response.clone()));
+        return response;
+      }))
+    );
+    return;
+  }
+
+  if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(
