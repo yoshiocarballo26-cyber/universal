@@ -14,3 +14,12 @@ root.render(
     <App />
   </React.StrictMode>
 );
+
+// Register the service worker so the installed PWA can cache its app shell.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch((error) => console.error('[YC Universal] Service worker registration failed:', error));
+  });
+}
