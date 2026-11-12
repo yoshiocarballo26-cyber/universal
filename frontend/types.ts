@@ -6,6 +6,8 @@ export type ModuleCategory =
   | 'images'
   | '3d'
   | 'archive'
+  | 'projects'
+  | 'clipboard'
   | 'tools';
 
 export type FileTypeCategory =
@@ -59,12 +61,20 @@ export interface TabItem {
   isDirty?: boolean;
 }
 
-export interface AudioTrack {
+export interface SubtitleCue {
+  id: number;
+  start: number; // in seconds
+  end: number;   // in seconds
+  text: string;
+}
+
+export interface PlaylistItem {
   id: string;
-  name: string;
-  artist?: string;
-  url: string;
+  fileId: string;
+  title: string;
+  type: 'audio' | 'video';
   duration?: number;
+  extension: string;
 }
 
 export interface PDFAnnotation {
@@ -84,4 +94,34 @@ export interface NoteItem {
   content: string;
   updatedAt: number;
   tags: string[];
+}
+
+export interface KanbanTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'done';
+  priority: 'low' | 'medium' | 'high';
+  fileIds: string[]; // Linked workstation files
+  createdAt: number;
+}
+
+export interface ProjectItem {
+  id: string;
+  title: string;
+  description: string;
+  color: string;
+  tasks: KanbanTask[];
+  quickNotes: string;
+  associatedFileIds: string[];
+  createdAt: number;
+}
+
+export interface ClipboardItem {
+  id: string;
+  content: string;
+  source: string;
+  type: 'text' | 'code' | 'json' | 'image-data';
+  timestamp: number;
+  favorite?: boolean;
 }
