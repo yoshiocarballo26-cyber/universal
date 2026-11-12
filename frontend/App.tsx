@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  WorkstationFile, TabItem, ModuleCategory, FileTypeCategory 
+  WorkstationFile, TabItem, ModuleCategory, FileTypeCategory, ProjectItem, ClipboardItem 
 } from './types';
 import { 
   COMPATIBILITY_MATRIX, INITIAL_FILES 
 } from './constants';
 import { 
-  getStoredFiles, saveStoredFiles, detectFileType, downloadTextAsFile 
+  getStoredFiles, saveStoredFiles, detectFileType, getStoredProjects, 
+  saveStoredProjects, getStoredClipboard, saveStoredClipboard 
 } from './services/fileService';
 import { FileManager } from './components/FileManager';
 import { MediaPlayer } from './components/MediaPlayer';
@@ -16,25 +17,35 @@ import { ImageViewer } from './components/ImageViewer';
 import { ThreeViewer } from './components/ThreeViewer';
 import { ArchiveViewer } from './components/ArchiveViewer';
 import { UtilityTools } from './components/UtilityTools';
+import { ProjectManager } from './components/ProjectManager';
+import { ClipboardManager } from './components/ClipboardManager';
 
 import { 
   FolderGit2, Disc, FileText, Code2, Image as ImgIcon, Box, 
-  Archive, Wrench, X, Shield, Plus, Download, Radio, Laptop, CheckCircle
+  Archive, Wrench, X, Plus, Kanban, ClipboardList, Radio
 } from 'lucide-react';
 
 export default function App() {
   const [files, setFiles] = useState<WorkstationFile[]>([]);
+  const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [clipboardItems, setClipboardItems] = useState<ClipboardItem[]>([]);
   const [activeModule, setActiveModule] = useState<ModuleCategory>('files');
   const [openTabs, setOpenTabs] = useState<TabItem[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
-  const [offlineNotice, setOfflineNotice] = useState<boolean>(true);
 
-  // Initialize stored files
+  // Initialize stored state
   useEffect(() => {
-    const loaded = getStoredFiles();
-    setFiles(loaded);
-    // Open initial README tab for immediate exploration
-    const readme = loaded.find((f) => f.name.includes('BIENVENIDO'));
+    const loadedFiles = getStoredFiles();
+    setFiles(loadedFiles);
+
+    const loadedProjects = getStoredProjects();
+    setProjects(loadedProjects);
+
+    const loadedClipboard = getStoredClipboard();
+    setClipboardItems(loadedClipboard);
+
+    // Open initial README tab
+    const readme = loadedFiles.find((f) => f.name.includes('BIENVENIDO'));
     if (readme) {
       setOpenTabs([
         {
@@ -50,7 +61,6 @@ export default function App() {
   }, []);
 
   const handleOpenFile = (file: WorkstationFile) => {
-    // Check if tab already exists
     const existing = openTabs.find((t) => t.fileId === file.id);
     if (existing) {
       setActiveTabId(existing.id);
@@ -108,7 +118,6 @@ export default function App() {
     const nextFiles = files.filter((f) => f.id !== id);
     setFiles(nextFiles);
     saveStoredFiles(nextFiles);
-    // Close tab if open
     setOpenTabs(openTabs.filter((t) => t.fileId !== id));
   };
 
@@ -125,7 +134,6 @@ export default function App() {
     if (category === 'code' || category === 'document' || category === 'spreadsheet' || extension === 'svg') {
       content = await rawFile.text();
     } else {
-      // Store Base64 for images or audio/media preview
       content = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -171,7 +179,16 @@ export default function App() {
     saveStoredFiles(nextFiles);
   };
 
-  // Resolve current active file for main workspace
+  const handleUpdateProjects = (updated: ProjectItem[]) => {
+    setProjects(updated);
+    saveStoredProjects(updated);
+  };
+
+  const handleUpdateClipboard = (updated: ClipboardItem[]) => {
+    setClipboardItems(updated);
+    saveStoredClipboard(updated);
+  };
+
   const activeTab = openTabs.find((t) => t.id === activeTabId);
   const activeFile = activeTab ? files.find((f) => f.id === activeTab.fileId) : null;
 
@@ -195,13 +212,15 @@ export default function App() {
           <nav className="p-2 space-y-1 mt-2">
             {[
               { id: 'files', label: 'Explorador', icon: <FolderGit2 className="w-4 h-4" /> },
+              { id: 'projects', label: 'Gestor de Proyectos', icon: <Kanban className="w-4 h-4" /> },
+              { id: 'clipboard', label: 'Portapapeles Interno', icon: <ClipboardList className="w-4 h-4" /> },
               { id: 'media', label: 'Multimedia & Audio', icon: <Disc className="w-4 h-4" /> },
               { id: 'documents', label: 'Documentos & PDF', icon: <FileText className="w-4 h-4" /> },
               { id: 'code', label: 'Editor de Código', icon: <Code2 className="w-4 h-4" /> },
               { id: 'images', label: 'Visor de Imágenes', icon: <ImgIcon className="w-4 h-4" /> },
               { id: '3d', label: 'Modelado 3D', icon: <Box className="w-4 h-4" /> },
               { id: 'archive', label: 'Compresión & ZIP', icon: <Archive className="w-4 h-4" /> },
-              { id: 'tools', label: 'Matriz & Herramientas', icon: <Wrench className="w-4 h-4" /> }
+              { id: 'tools', label: 'Matriz & Conversor', icon: <Wrench className="w-4 h-4" /> }
             ].map((item) => {
               const isActive = activeModule === item.id;
               return (
@@ -235,7 +254,7 @@ export default function App() {
             <span className="text-gold-400">PWA Lista</span>
           </div>
           <div className="text-[10px] text-slate-500">
-            {files.length} archivos en almacenamiento local
+            {files.length} archivos • {projects.length} proyectos activos
           </div>
         </div>
       </aside>
@@ -253,7 +272,6 @@ export default function App() {
                   key={tab.id}
                   onClick={() => {
                     setActiveTabId(tab.id);
-                    // Match module to tab category
                     if (tab.category === 'audio' || tab.category === 'video') setActiveModule('media');
                     else if (tab.category === 'document' || tab.category === 'spreadsheet') setActiveModule('documents');
                     else if (tab.category === 'code') setActiveModule('code');
@@ -309,9 +327,29 @@ export default function App() {
             />
           )}
 
+          {activeModule === 'projects' && (
+            <ProjectManager
+              projects={projects}
+              allFiles={files}
+              onUpdateProjects={handleUpdateProjects}
+              onOpenFile={handleOpenFile}
+            />
+          )}
+
+          {activeModule === 'clipboard' && (
+            <ClipboardManager
+              items={clipboardItems}
+              onUpdateItems={handleUpdateClipboard}
+            />
+          )}
+
           {activeModule === 'media' && (
             activeFile ? (
-              <MediaPlayer file={activeFile} />
+              <MediaPlayer 
+                file={activeFile} 
+                allMediaFiles={files.filter(f => f.type === 'audio' || f.type === 'video')}
+                onSelectTrack={handleOpenFile}
+              />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
                 <Disc className="w-16 h-16 text-slate-700 mb-4 animate-spin-slow" />
@@ -436,7 +474,14 @@ export default function App() {
           )}
 
           {activeModule === 'tools' && (
-            <UtilityTools />
+            <UtilityTools 
+              files={files} 
+              onFileGenerated={(newF) => {
+                const nextFiles = [newF, ...files];
+                setFiles(nextFiles);
+                saveStoredFiles(nextFiles);
+              }}
+            />
           )}
         </section>
       </main>
